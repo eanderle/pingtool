@@ -1,17 +1,36 @@
 #!/usr/bin/env python
 
+"""
+A simple ping tool. Pings hosts and appends results to stdout and to:
+
+    /tmp/pingtool.csv
+
+"""
+
 import commands
 import csv
+import datetime
 import json
 import os
 import sys
 import time
+from argparse import ArgumentParser
 from contextlib import contextmanager
 
 from ping import Ping
 
 PING_TIMEOUT = 3000 # this is wifi, people. Could be slow.
 PING_HOSTS = ['10.11.0.1', 'google.com']
+
+parser = ArgumentParser(description=__doc__.strip())
+
+parser.add_argument(
+    'hosts',
+    metavar='HOST',
+    nargs='*',
+    default=PING_HOSTS,
+    help='Hosts to ping',
+    )
 
 @contextmanager
 def no_stdout():
@@ -21,6 +40,10 @@ def no_stdout():
             yield
     finally:
         sys.stdout = sys.__stdout__
+
+def utctime():
+    """ Return the current ISO 8601 timestamp in UTC. """
+    return datetime.datetime.utcnow().isoformat()
 
 def get_ap_info():
     """
@@ -72,7 +95,7 @@ class MultiFile(object):
         for f in self.files:
             f.write(data)
 
-def main():
+def main(hosts):
     ap_info = get_ap_info()
     ssid, bssid = ap_info['SSID'], ap_info['BSSID']
     user = os.getlogin()
@@ -82,19 +105,20 @@ def main():
         tee.write('#%s\n' % json.dumps(ap_info))
         writer = csv.writer(tee)
         writer.writerow(
-            ('user', 'ssid', 'bssid', 'host', 'delay')
+            ('user', 'ssid', 'bssid', 'utc_time', 'host', 'delay')
             )
 
         while True:
-            for host in PING_HOSTS:
+            for host in hosts:
                 delay = ping_host(host)
                 writer.writerow(
-                    (user, ssid, bssid, host, delay)
+                    (user, ssid, bssid, utctime(), host, delay)
                     )
             time.sleep(2)
 
 if __name__ == '__main__':
+    args = parser.parse_args()
     try:
-        main()
+        main(args.hosts)
     except KeyboardInterrupt:
         pass
