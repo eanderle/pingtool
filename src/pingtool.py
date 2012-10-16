@@ -43,6 +43,12 @@ def no_stdout():
     finally:
         sys.stdout = sys.__stdout__
 
+def get_user():
+    if "SUDO_USER" in os.environ:
+        return os.environ['SUDO_USER']
+    else:
+        return os.getlogin()
+
 def utctime():
     """ Return the current ISO 8601 timestamp in UTC. """
     return datetime.datetime.utcnow().isoformat()
@@ -86,7 +92,15 @@ def get_osx_ap_info():
 
 def get_linux_ap_info():
     # do some different stuff here.
-    pass
+    status, output = commands.getstatusoutput("nm-tool|grep -E '\*.*Infra'")
+    lines = output.splitlines()
+    assert len(lines) == 1
+    chunks = lines[0].split(None)
+    result = {
+        'SSID':  chunks[0][1:-1],
+        'BSSID': chunks[2][:-1]
+    }
+    return result
 
 def get_ap_info():
     """
@@ -119,7 +133,7 @@ class MultiFile(object):
 def main(hosts):
     ap_info = get_ap_info()
     ssid, bssid = ap_info['SSID'], ap_info['BSSID']
-    user = os.getlogin()
+    user = get_user()
 
     with open('/tmp/pingtool.csv', 'a') as f:
         tee = MultiFile(sys.stdout, f)
