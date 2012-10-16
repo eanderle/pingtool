@@ -22,6 +22,8 @@ from ping import Ping
 PING_TIMEOUT = 3000 # this is wifi, people. Could be slow.
 PING_HOSTS = ['10.11.0.1', 'google.com']
 
+OSX_AIRPORT_TOOL = '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport'
+
 parser = ArgumentParser(description=__doc__.strip())
 
 parser.add_argument(
@@ -45,7 +47,7 @@ def utctime():
     """ Return the current ISO 8601 timestamp in UTC. """
     return datetime.datetime.utcnow().isoformat()
 
-def get_ap_info():
+def get_osx_ap_info():
     """
     Runs the OS X airport utility tool and returns data on the current
     AP.
@@ -67,7 +69,7 @@ def get_ap_info():
             channel: 6
     """
     status, output = commands.getstatusoutput(
-        '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I'
+        '%s -I' % OSX_AIRPORT_TOOL
         )
     chunks = (
         line.split(':', 1) for line in output.splitlines()
@@ -81,6 +83,25 @@ def get_ap_info():
         result[key] = int(result[key])
     
     return result
+
+def get_linux_ap_info():
+    # do some different stuff here.
+    pass
+
+def get_ap_info():
+    """
+    Returns a dict of AP info, including (most essentially) these
+    two keys:
+    
+        'SSID': the SSID of the AP
+        'BSSID': the BSSID of the AP
+
+    """
+
+    if os.path.exists(OSX_AIRPORT_TOOL):
+        return get_osx_ap_info()
+    else:
+        return get_linux_ap_info()
 
 def ping_host(host):
     with no_stdout():
